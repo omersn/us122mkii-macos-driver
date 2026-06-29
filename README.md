@@ -1,64 +1,112 @@
-# US-122MKII macOS Driver
+# TASCAM US-122MKII — Unofficial macOS Driver
 
-An unofficial, from-scratch audio driver for the **TASCAM US-122MKII** USB audio
-interface on **macOS 10.13 High Sierra (Intel)**. TASCAM abandoned this device;
-no driver exists for modern macOS. This one is reverse-engineered from the USB
-protocol up.
+An unofficial, from-scratch audio driver that brings the **TASCAM US-122MKII** USB
+audio interface back to life on modern macOS. TASCAM discontinued this device and
+never released a driver for current versions of macOS, so on a recent Mac it is
+otherwise just a paperweight. This project makes it work again, reverse-engineered
+from the USB protocol up.
 
-**Status: working.** Audio plays and records cleanly. The driver is stable and
-crash-free. The active work is curing a load-induced jitter by moving the
-isochronous USB transport to Apple's low-latency IOUSBLib API.
+**Status:** working. Audio plays and records cleanly, and the driver is stable and
+crash-free. Built and tested on **macOS 13.7.8 Ventura (Intel)**.
 
-## If you are Claude Code picking this up: read `docs/00-START-HERE.md` first.
+---
 
-It is a five-minute orientation and it links the rest in order. The single most
-important thing to absorb before writing code is in `docs/02-history-v1-v2.md`:
-this project has an abandoned V2 whose suspected failure cause is the same API
-the planned improvement adopts. Understand that tension or repeat it.
+> [!IMPORTANT]
+> **Not every US-122MKII will work with this driver.** The US-122MKII shipped in
+> more than one hardware revision. Some units boot straight into a ready state and
+> work with this driver as-is. Other, **FPGA-based revisions come up "cold" and
+> require the host driver to upload firmware to the device every time it is
+> plugged in**, before the audio interface even appears to the computer.
+>
+> **This driver does not include that firmware upload.** It only supports units
+> that already present themselves as a ready audio device on their own. If your
+> unit is a firmware-upload revision, it will not work with this driver (yet).
 
-## Layout
+### How to tell whether your unit is supported
 
-```
-docs/                  read these in numbered order (start at 00)
-  00-START-HERE.md       orientation + working constraints
-  01-architecture.md     full system layout (the shipping V1)
-  02-history-v1-v2.md    the V1/V2 saga, where V2 failed, the core irony
-  03-current-state.md    what works now, last session's work, the open problem
-  04-roadmap-lowlatency-isoc.md   the staged plan for the work ahead
-  05-protocol-facts.md   hardware-proven constants (ground truth)
-  06-jitter-research.md  external research that diagnosed the jitter + the fix
+Plug the interface into your Mac and run this in Terminal:
 
-src/                   the shipping V1 source
-  daemon/                us122d.c + shmring.h  (libusb USB engine + shm contract)
-  plugin/                US122.driver/...      (Core Audio HAL plugin)
-  menu/                  US122Menu/...         (Swift menu-bar control app)
-  plist/                 net.senesh.us122d.plist (launchd config)
-  build/                 build_*.sh            (build + install, run on the Mac)
-
-reference/
-  v2-abandoned/          the FULL V2 source (study its low-latency iso code)
-  linux-reference/       serifpersia's ALSA driver (protocol source of truth)
-
-tools/                 standalone USB probes (descriptor dump, raw playback)
+```bash
+system_profiler SPUSBDataType | grep -B2 -A8 -i tascam
 ```
 
-## The hardware-loop constraint
+- **Supported:** the device appears with **Vendor ID `0x0644`** and
+  **Product ID `0x8021`**. That means its firmware is already resident and the
+  device is ready, which is all this driver needs.
+- **Not supported (needs firmware):** the device shows a different product ID,
+  appears under a different vendor (the bare USB controller), shows up only for a
+  moment, or does not appear at all. Those are the cold, firmware-upload revisions
+  this driver cannot initialize.
 
-The device is on the author's physical Mac. This repo's owner builds and tests
-every change there, then feeds logs back. A Claude Code instance working on this
-**cannot test IOKit, CoreAudio, libusb, or USB locally**; it compiles only the
-portable C core against stubs. The whole method is measure-first, one-change-per-
-build. See `docs/00-START-HERE.md` for the full working style.
+## Why this project exists
 
-## Build (on the Mac)
+TASCAM abandoned the US-122MKII years ago. There is no official driver for any
+current macOS release, and the device uses a vendor-specific USB class, so macOS
+has no built-in support to fall back on. The hardware itself is still perfectly
+good. This driver makes a discontinued, otherwise-unusable interface useful again.
 
-The scripts in `src/build/` build the bundle, daemon, and menu app and print the
-sudo install commands. They expect libusb from Homebrew. Full install sequences
-are in `docs/03-current-state.md`. Note: after extracting any tarball, the build
-scripts need `chmod +x` (the execute bit does not survive tarring).
+## How it works
 
-## License
+The driver is three small cooperating pieces:
 
-The Linux reference under `reference/linux-reference/` is GPL (serifpersia/
-us144mkii). This driver's own code carries the license in the repo root if/when
-published; treat any libusb-derived or reference-derived portions accordingly.
+- **`us122d`** — a background daemon that owns the USB device and runs the
+  real-time audio transfer engine.
+- **US122.driver** — a Core Audio plugin that presents the interface to macOS, so
+  it shows up in Sound settings and in any audio application.
+- **US122Menu** — a menu-bar app to switch the driver on and off, choose the
+  buffer size, and see device status at a glance.
+
+The pieces talk to each other through shared memory. The full design is in
+[`docs/01-architecture.md`](docs/01-architecture.md).
+
+## Status and known limitations
+
+- **Works:** clean full-duplex 24-bit audio in and out, survives plug/unplug, no
+  crashes.
+- **Load-induced jitter:** under heavy unrelated system load, audio can develop
+  brief skips. This is a timing issue in the USB delivery path, not a shortage of
+  audio data. A low-latency rewrite to cure it is in progress, see
+  [`docs/04-roadmap-lowlatency-isoc.md`](docs/04-roadmap-lowlatency-isoc.md).
+- **Audio only:** the device's MIDI ports are not handled by this driver.
+- **Tested on:** macOS 13.7.8 Ventura on Intel. Other macOS versions and Apple
+  Silicon Macs are untested.
+
+## Building and installing
+
+The build scripts in [`src/build/`](src/build/) compile the daemon, the Core Audio
+plugin, and the menu app, then print the `sudo` commands needed to install each.
+They expect libusb (from Homebrew). Step-by-step install sequences are in
+[`docs/03-current-state.md`](docs/03-current-state.md).
+
+## Repository layout
+
+```
+docs/        design and protocol documentation (start at docs/00-START-HERE.md)
+src/         the driver: daemon, Core Audio plugin, menu app, build scripts
+reference/   the Linux ALSA reference driver (protocol source of truth)
+             plus an abandoned single-process prototype kept for study
+tools/       small standalone USB probes (descriptor dump, raw tone/wav playback)
+```
+
+## Credits and license
+
+The USB protocol was cross-checked against **serifpersia's Linux ALSA driver**
+(included under [`reference/linux-reference/`](reference/linux-reference/)), which
+is GPL-2.0. Thanks to that project for documenting the hardware.
+
+Because this repository bundles and derives from GPL-2.0 reference code, the
+project's own license is being finalized as a GPL-compatible license. Until that
+is committed, treat the reference material as GPL-2.0.
+
+## Disclaimer
+
+This is an **unofficial** project and is not affiliated with, authorized by, or
+endorsed by TASCAM or TEAC. The US-122MKII is a discontinued product. This driver
+is reverse-engineered and provided as-is, with no warranty. Use it at your own
+risk.
+
+---
+
+*Working on the code? Start with [`docs/00-START-HERE.md`](docs/00-START-HERE.md)
+for a full orientation, and see [`CLAUDE.md`](CLAUDE.md) for the engineering
+ground rules.*
