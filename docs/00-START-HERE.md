@@ -1,5 +1,13 @@
 # 00 - START HERE
 
+> **Update 2026-06-29 (read `docs/07` first):** The project now builds and tests
+> directly on the target Mac. Target OS is **macOS 13.7.8 Ventura**, not 10.13.
+> Architecture decision made: **Path A** (low-latency engine inside V1). **Stage 0
+> (buffer layout) is resolved.** The V2 source in `reference/` actually uses
+> *standard* isoch, not low-latency, and the bit-crush root cause is still open.
+> `docs/07-stage0-findings-and-stage1-plan.md` is the current truth and supersedes
+> conflicting parts of docs 02, 04, 05.
+
 You are picking up a multi-session hardware project mid-stream. This document
 orients you in five minutes. Read it fully before touching anything.
 

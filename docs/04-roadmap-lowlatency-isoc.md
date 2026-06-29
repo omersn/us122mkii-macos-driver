@@ -1,5 +1,12 @@
 # 04 - Roadmap: the low-latency isochronous rewrite
 
+> **Update 2026-06-29 (see `docs/07`):** Decision made: **Path A**. **Stage 0 is
+> resolved** from the local SDK headers + V1 as reference (no frame-list offset
+> field; low-latency data layout == standard; correct layout = V1's contiguous
+> write / fixed-stride read). The current Stage 1 plan lives in
+> `docs/07-stage0-findings-and-stage1-plan.md`; use it instead of the Stage 0/1
+> text below where they differ.
+
 The goal: cure V1's load-induced jitter by moving the isochronous transport from
 stock libusb (standard iso, run-loop delivery, stalls under load) to Apple's
 **low-latency IOUSBLib isoc API** (`LowLatencyCreateBuffer`,

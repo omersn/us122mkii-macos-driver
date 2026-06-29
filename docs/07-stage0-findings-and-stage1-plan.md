@@ -1,0 +1,111 @@
+# 07 - Stage 0 findings, the V2 correction, and the Stage 1 plan
+
+Authoritative current understanding (2026-06-29). Where this conflicts with
+docs/02, 04, or 05, this document wins; those carry an older narrative.
+
+## Status
+
+- **Target OS: macOS 13.7.8 Ventura (Intel).** All prior testing was on Ventura;
+  the "10.13 High Sierra" in older docs was a labeling error, now corrected.
+- **The device tests directly on the dev Mac now.** Claude Code runs locally with
+  the US-122MKII attached. V1 (build6, shm v6) is installed and was confirmed
+  streaming live on Ventura. The load-induced jitter reproduced live: `gap_max`
+  ~115-119 ms, `pb_cb/s` collapsing to ~313, `underrun=0` throughout.
+- **Architecture decision: Path A** - low-latency engine inside V1, keep the
+  daemon + shm + resampler. Not reviving V2.
+
+## Stage 0: the buffer-layout question is ANSWERED
+
+From the local SDK headers (`IOKit/usb/USB.h`, `IOUSBLib.h`) plus V1 as a
+proven-correct, on-hardware reference:
+
+1. **No per-packet data-offset field exists** in either isoc frame struct.
+   `IOUSBIsocFrame` = `{frStatus, frReqCount, frActCount}` (8 bytes);
+   `IOUSBLowLatencyIsocFrame` adds `AbsoluteTime frTimeStamp` (16 bytes). The
+   roadmap's "maybe the offset is recorded in the frame list" theory is therefore
+   impossible. Packet position is implicit, governed by `frReqCount`.
+2. **Low-latency data layout is identical to standard isoc.** `IOUSBLib.h`: the
+   low-latency calls are "analogous to ReadIsochPipeAsync/WriteIsochPipeAsync;
+   they differ in that the frame list data is updated at primary interrupt time."
+   Differences are only: buffers from `LowLatencyCreateBuffer` (read/write/
+   framelist types), 16-byte frame structs, `updateFrequency` 0-8 ms.
+3. **The correct layout = V1's libusb layout** (proven clean on this device):
+   - **Playback (write): CONTIGUOUS**, packed by the variable per-packet byte
+     count. us122d.c sets `iso_packet_desc[i].length = bytes` and packs at a
+     running offset (`running += bytes`). Not fixed stride.
+   - **Capture (read): fixed stride `i * 78`**; set `frReqCount = 78` for every
+     packet and gather `actual_length` valid bytes from each slot. (When reqcount
+     is constant, contiguous == fixed-stride, so capture cannot distinguish the
+     two models; playback is where layout matters.)
+
+## V2 correction (supersedes docs/02's "irony")
+
+- **The V2 source in `reference/v2-abandoned/` uses STANDARD isoch**
+  (`WriteIsochPipeAsync`/`ReadIsochPipeAsync`, 8-byte `IOUSBIsocFrame`), NOT the
+  low-latency API docs/02 describes. Only stale comments mention low-latency. The
+  standard-iso "Option 1" was coded but, per history, never hardware-tested.
+- **V2 ran on the real device and did NOT skip or break.** It sounded bit-crushed
+  (~4-bit, recognizable underneath, scaled smoothly with sample rate, cleanest at
+  96 kHz). So the **low-latency transport timing was clean on this hardware** -
+  positive evidence that low-latency iso cures the jitter. The failure was DATA,
+  not timing.
+- **Root cause of the bit-crush is OPEN.** The fixed-stride playback layout in
+  V2's `fill_playback_xfer` is one candidate, but it does not fit a uniform,
+  recognizable bit-crush (a gross stride mismatch would skip or garble, not gently
+  quantize). The "per-packet-edge, scales-with-rate, best at 96k" signature points
+  at a subtle per-packet-boundary corruption that has not been identified. Do not
+  assert the cause.
+
+## Why Path A is safe regardless of V2's unsolved bug
+
+Path A ports **V1's proven layout** into low-latency calls; it does not reuse
+V2's code. The headers confirm the low-latency data layout equals the standard
+layout V1 already uses cleanly. Replicate V1's exact contiguous-write /
+fixed-stride-read layout and we sidestep whatever V2 did wrong.
+
+## Stage 1 plan: low-latency CAPTURE engine (read-only, makes no sound)
+
+Prove the low-latency plumbing on hardware before touching playback.
+
+1. **Isolate the IOKit code** in a new file (e.g. `src/daemon/lowlat_iso.c/.h`)
+   so a compile error is a targeted fix, not an architecture round.
+2. **Acquire** via the proven protocol facts (vid 0644 / pid 8021, iface 1, alt 1,
+   EP 0x81, rate-set control transfer). Keep libusb for enumerate/open/claim at
+   first if convenient, or go native IOUSBLib.
+3. **Allocate** with `LowLatencyCreateBuffer`: a data buffer
+   (`FRAMES_PER_XFER * 78`, kUSBLowLatencyReadBuffer) and a frame-list buffer
+   (`FRAMES_PER_XFER * sizeof(IOUSBLowLatencyIsocFrame)` = *16* per frame,
+   kUSBLowLatencyFrameListBuffer). Queue several transfers (start with 16).
+4. **Submit** `LowLatencyReadIsochPipeAsync` on EP 0x81, `frReqCount=78` per frame,
+   `updateFrequency=1`, `frameStart = GetBusFrameNumber + lead` (watch
+   `kIOReturnIsoTooOld`; widen the lead if it fires).
+5. **Run** on a dedicated CFRunLoop thread promoted to realtime (reuse V1's
+   `make_thread_realtime` policy).
+6. **On completion**, gather `frActCount` valid bytes from each `i*78` slot into
+   the capture ring; resubmit on a future frame.
+7. **VALUE-DUMP GATE:** log the first few frames; confirm bytes-in == bytes-out
+   against a known-good V1 capture before trusting anything.
+8. **LOAD GATE:** window-move / Spotlight typing; confirm `gap_max` stays low and
+   `cap_cb/s` holds ~500 (vs V1's collapse to ~313). That is the proof the
+   low-latency path beats the jitter.
+
+Pass both gates, then Stage 2 (playback), where the contiguous layout is the
+make-or-break and the value-dump matters most.
+
+## Open risks
+
+- **Bit-crush root cause unknown.** Capture is layout-insensitive (constant
+  reqcount), so the decisive layout test is Stage 2 playback; value-dump there.
+- **`kIOReturnIsoTooOld`** lead-frame tuning (V2 flagged it).
+- IOKit/CoreAudio now compile AND test locally on this Mac, so iteration is fast.
+
+## Local build/test loop
+
+- **Build:** `clang` locally (CoreAudio + IOKit frameworks present). All three V1
+  components already compile clean here.
+- **Install:** needs sudo, and **sudo requires a password** on this Mac, so the
+  daemon/plugin install + `killall coreaudiod` steps are handed to the user to run.
+- **Test without audio out:** capture from avfoundation audio input `[1]`
+  (`ffmpeg -f avfoundation -i ":1" -t 6 -y /tmp/cap.wav`); read jitter lines from
+  `/var/log/us122d.err` (`US122_DEBUG=1` in the plist). To wake the daemon, build
+  and `open` the menu app (it sets `app_active=1`).

@@ -1,5 +1,12 @@
 # 05 - Protocol facts (hardware-proven ground truth)
 
+> **Update 2026-06-29 (see `docs/07`):** The "buffer-layout nuance" open question
+> near the end of this file is **answered**. There is no per-packet offset field in
+> the IOKit isoc frame structs; the low-latency data layout is identical to
+> standard isoc; the correct layout is V1's own libusb layout (contiguous packed
+> playback by per-packet byte count, fixed-stride `i*78` capture). Details in
+> `docs/07-stage0-findings-and-stage1-plan.md`.
+
 Every constant here was proven on the physical device (in V1, and cross-checked
 against the serifpersia Linux reference in `reference/linux-reference/`). Treat
 this as ground truth. Do not "improve" these values; they are what the hardware

@@ -1,5 +1,13 @@
 # 02 - History: V1, V2, and the irony you must understand
 
+> **Correction 2026-06-29 (see `docs/07`):** Two claims below are now known wrong.
+> (1) The V2 source in `reference/` uses **standard** isoch
+> (`Write/ReadIsochPipeAsync`, 8-byte frames), not the low-latency API; the
+> standard-iso "Option 1" was coded, not "never tried" (just never hardware-tested).
+> (2) The "low-latency caused the bit-crush" irony is not established: V2 ran on
+> the device with clean timing (no skips), only the audio data was bit-crushed, and
+> the root cause is still open. Path A does not depend on resolving it.
+
 This is the most important document in the package. It explains where V2 failed,
 in detail, and why that failure is in direct tension with the work ahead. If you
 internalize one thing, make it the section "The irony, stated plainly."
