@@ -17,7 +17,7 @@
     <key>CFBundleExecutable</key>
     <string>US122Menu</string>
     <key>LSMinimumSystemVersion</key>
-    <string>10.13</string>
+    <string>13.0</string>
     <!-- menu-bar agent: no dock icon, no main window -->
     <key>LSUIElement</key>
     <true/>

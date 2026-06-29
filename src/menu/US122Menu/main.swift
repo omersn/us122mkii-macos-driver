@@ -9,7 +9,7 @@
 //   hollow  = device absent (or hidden)
 // Menu lets the user Show/Hide the virtual audio device via the user_hide flag.
 //
-// Build (10.13+):
+// Build (macOS 13 Ventura+):
 //   swiftc -O -o US122Menu main.swift -framework Cocoa
 // Packaged as an LSUIElement .app (no dock icon) — see Info.plist.
 
