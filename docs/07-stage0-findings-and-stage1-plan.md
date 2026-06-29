@@ -63,39 +63,52 @@ V2's code. The headers confirm the low-latency data layout equals the standard
 layout V1 already uses cleanly. Replicate V1's exact contiguous-write /
 fixed-stride-read layout and we sidestep whatever V2 did wrong.
 
-## Stage 1 plan: low-latency CAPTURE engine (read-only, makes no sound)
+## Stage 1 plan: low-latency PLAYBACK engine (decided 2026-06-30)
 
-Prove the low-latency plumbing on hardware before touching playback.
+Playback first, by the user's call: it is the goal, it is where V2's bit-crush
+lived, and "play a tone and listen" is a faster, more decisive verdict than a
+capture value-dump. Tradeoff accepted: this couples the new plumbing, the
+layout-critical contiguous write, and future-frame scheduling in the first test,
+so instrument well (below) to keep a failure diagnosable.
 
 1. **Isolate the IOKit code** in a new file (e.g. `src/daemon/lowlat_iso.c/.h`)
    so a compile error is a targeted fix, not an architecture round.
 2. **Acquire** via the proven protocol facts (vid 0644 / pid 8021, iface 1, alt 1,
-   EP 0x81, rate-set control transfer). Keep libusb for enumerate/open/claim at
-   first if convenient, or go native IOUSBLib.
+   **EP 0x02 OUT**, rate-set control transfer). Keep libusb for enumerate/open/
+   claim at first if convenient, or go native IOUSBLib.
 3. **Allocate** with `LowLatencyCreateBuffer`: a data buffer
-   (`FRAMES_PER_XFER * 78`, kUSBLowLatencyReadBuffer) and a frame-list buffer
+   (`FRAMES_PER_XFER * 78`, **kUSBLowLatencyWriteBuffer**) and a frame-list buffer
    (`FRAMES_PER_XFER * sizeof(IOUSBLowLatencyIsocFrame)` = *16* per frame,
    kUSBLowLatencyFrameListBuffer). Queue several transfers (start with 16).
-4. **Submit** `LowLatencyReadIsochPipeAsync` on EP 0x81, `frReqCount=78` per frame,
-   `updateFrequency=1`, `frameStart = GetBusFrameNumber + lead` (watch
-   `kIOReturnIsoTooOld`; widen the lead if it fires).
-5. **Run** on a dedicated CFRunLoop thread promoted to realtime (reuse V1's
-   `make_thread_realtime` policy).
-6. **On completion**, gather `frActCount` valid bytes from each `i*78` slot into
-   the capture ring; resubmit on a future frame.
-7. **VALUE-DUMP GATE:** log the first few frames; confirm bytes-in == bytes-out
-   against a known-good V1 capture before trusting anything.
-8. **LOAD GATE:** window-move / Spotlight typing; confirm `gap_max` stays low and
-   `cap_cb/s` holds ~500 (vs V1's collapse to ~313). That is the proof the
+4. **Fill = the layout-critical step. Copy V1's `us122d.c` exactly:** per packet,
+   `g_accum += rate; frames = g_accum/8000; bytes = frames*6`; pack **contiguously**
+   (`running += bytes`), and set `frameList[i].frReqCount = bytes`. NOT fixed
+   stride. This is the one thing V2 got wrong; getting it identical to V1 is the
+   whole game.
+5. **Submit** `LowLatencyWriteIsochPipeAsync` on EP 0x02, `updateFrequency=1`,
+   `frameStart = GetBusFrameNumber + lead`. **`kIOReturnIsoTooOld` is the likely
+   snag here** (playback schedules on future frames); widen the lead if it fires.
+6. **Run** on a dedicated CFRunLoop thread promoted to realtime (reuse V1's
+   `make_thread_realtime` policy). Source audio from the existing playback ring
+   (the HAL plugin + resampler already fill it), so only the transport changes.
+7. **TONE GATE:** feed a known steady **sine** (not music) and listen. A clean,
+   steady tone = layout right. Any grit/bit-crush = layout still wrong.
+8. **RATE GATE (the sharp one):** test 48k, then 44.1k and 96k. V2 got cleaner at
+   96k (per-packet slip `78 - reqcount`: 42 bytes at 48k down to 6 at 96k). If our
+   contiguous layout is right, that rate-scaled artifact is GONE at every rate.
+9. **LOAD GATE:** window-move / Spotlight typing; confirm `gap_max` stays low and
+   `pb_cb/s` holds ~500 (vs V1's collapse to ~313). That is the proof the
    low-latency path beats the jitter.
 
-Pass both gates, then Stage 2 (playback), where the contiguous layout is the
-make-or-break and the value-dump matters most.
+Pass the gates, then **Stage 2: capture** (EP 0x81, `frReqCount=78`, fixed-stride
+`i*78` gather of `frActCount` bytes; layout-insensitive, so it is the easy half).
+Value-dump bytes-in == bytes-out vs a known-good V1 capture.
 
 ## Open risks
 
-- **Bit-crush root cause unknown.** Capture is layout-insensitive (constant
-  reqcount), so the decisive layout test is Stage 2 playback; value-dump there.
+- **Bit-crush root cause unknown.** The decisive layout test is the Stage 1
+  playback tone + rate gates; capture (Stage 2) is layout-insensitive (constant
+  reqcount), the easy half.
 - **`kIOReturnIsoTooOld`** lead-frame tuning (V2 flagged it).
 - IOKit/CoreAudio now compile AND test locally on this Mac, so iteration is fast.
 
