@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>US122Menu</string>
+    <key>CFBundleDisplayName</key>
+    <string>US-122MKII Menu</string>
+    <key>CFBundleIdentifier</key>
+    <string>net.senesh.us122menu</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>US122Menu</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.13</string>
+    <!-- menu-bar agent: no dock icon, no main window -->
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>

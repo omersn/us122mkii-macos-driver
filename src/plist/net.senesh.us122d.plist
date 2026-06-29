@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>net.senesh.us122d</string>
+
+    <!-- Path where you install the daemon binary. Adjust if you put it
+         elsewhere; must be an absolute path readable by root. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/us122d</string>
+    </array>
+
+    <!-- Start at load and keep it alive; relaunch if it exits (e.g. device
+         unplugged then us122d exits, launchd restarts it to wait again). -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Throttle relaunches so a missing device doesn't spin the CPU. -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- Run as root for raw USB access via libusb/IOKit. -->
+    <key>UserName</key>
+    <string>root</string>
+
+    <!-- Enable the diagnostic logger thread (jitter/gap stats). Remove this
+         block to return to zero-overhead production logging. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>US122_DEBUG</key>
+        <string>1</string>
+    </dict>
+
+    <!-- Logs for debugging. -->
+    <key>StandardOutPath</key>
+    <string>/var/log/us122d.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/us122d.err</string>
+</dict>
+</plist>

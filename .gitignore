@@ -1,0 +1,44 @@
+# Build artifacts
+*.o
+*.obj
+*.gch
+*.pch
+*.dSYM/
+
+# Compiled binaries (daemon, probes, menu app)
+us122d
+US122.driver/Contents/MacOS/US122
+US122Menu.app/
+/tmp/
+
+# Standalone tool binaries (built from tools/*.c)
+tools/us122_descdump
+tools/us122_pack
+tools/us122_wavplay
+
+# Shared libraries
+*.so
+*.so.*
+*.dylib
+*.a
+*.la
+*.lo
+
+# Tarballs (build snapshots; git is the history now)
+*.tar.gz
+*.tar
+
+# macOS cruft
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Logs
+*.log
+*.err
+
+# Editor cruft
+*~
+.idea/
+.vscode/

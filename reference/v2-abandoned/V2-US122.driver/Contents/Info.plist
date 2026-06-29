@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>English</string>
+    <key>CFBundleExecutable</key>
+    <string>V2-US122</string>
+    <key>CFBundleIdentifier</key>
+    <string>net.senesh.us122.driver.v2</string>
+    <key>CFBundleName</key>
+    <string>V2-US122</string>
+    <key>CFBundlePackageType</key>
+    <string>BNDL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>2.0</string>
+    <key>CFBundleVersion</key>
+    <string>2</string>
+    <key>CFPlugInDynamicRegistration</key>
+    <string>NO</string>
+    <key>CFPlugInFactories</key>
+    <dict>
+        <!-- Factory UUID -> C factory function. Must match kFactoryUUID bytes
+             in V2-US122.c. Distinct from V1 so both can be installed during
+             testing without colliding. -->
+        <key>9A7C3B10-6F2E-4C5A-9E11-US122DRIVER2</key>
+        <string>US122_Create</string>
+    </dict>
+    <key>CFPlugInTypes</key>
+    <dict>
+        <!-- kAudioServerPlugInTypeUUID (fixed by Apple) -> our factory UUID. -->
+        <key>443ABAB8-E7B3-491A-B985-BEB9187030DB</key>
+        <array>
+            <string>9A7C3B10-6F2E-4C5A-9E11-US122DRIVER2</string>
+        </array>
+    </dict>
+</dict>
+</plist>
