@@ -16,7 +16,7 @@ daemon reconciles them.
 
 ```
    ┌─────────────────────────────────────────────────────────────────┐
-   │ macOS 10.13 (Intel)                                              │
+   │ macOS 13.7.8 (Intel)                                             │
    │                                                                  │
    │   audio apps ──► coreaudiod ──► US122.driver (HAL plugin)        │
    │                                   │  float<->6-byte conversion   │
@@ -58,7 +58,7 @@ system audio clock. They drift. Reconciling them is what the resampler does, and
 that resampler plus the cross-process priority fight is the entire reason V2 was
 attempted (see `docs/02-history-v1-v2.md`).
 
-(Spoiler from the history: V2 later **proved** coreaudiod CAN open USB on 10.13.
+(Spoiler from the history: V2 later **proved** coreaudiod CAN open USB on Ventura.
 So the sandbox fear was unfounded. But V1 shipped on the safe assumption, and V1
 works, so it stands.)
 

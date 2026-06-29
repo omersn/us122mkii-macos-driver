@@ -83,7 +83,7 @@ data.
 | Buffer 128ms -> 1536ms | buffer too small | No effect on skips. underrun stayed 0. |
 | (counter) | underruns | 0 across every run. Not an underrun problem. |
 | RT policy: non-preemptible, computation 0.6 -> 0.9ms | CPU preemption | Faster recovery, spikes still 200-400ms. Helped, did not cure. |
-| Per-region `mlock` (shm + transfer buffers) | page faults | No change. `mlockall` is unavailable on 10.13 (errno 78); per-region `mlock` succeeded ("shm wired into RAM (mlock ok)") and changed nothing. |
+| Per-region `mlock` (shm + transfer buffers) | page faults | No change. `mlockall` is unavailable on macOS 13.7.8 (errno 78); per-region `mlock` succeeded ("shm wired into RAM (mlock ok)") and changed nothing. |
 
 **Conclusion from the table:** a non-preemptible realtime thread, with wired
 memory and a deep transfer queue, STILL sees 280-400ms gaps between isoc

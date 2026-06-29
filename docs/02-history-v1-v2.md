@@ -49,7 +49,7 @@ remarkably far.
 the plugin loading inside `coreaudiod`, opening the USB device through IOKit,
 and starting isochronous streaming. The log showed `device present` and
 `streaming at 48000 Hz` from the coreaudiod driver-host process. So a HAL plugin
-on macOS 10.13 **can** open a raw USB device. That single fact reshapes the
+on macOS 13.7.8 Ventura **can** open a raw USB device. That single fact reshapes the
 option space for any future rearchitecture: the two-process split is not
 actually required by the sandbox.
 

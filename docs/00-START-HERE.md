@@ -7,7 +7,7 @@ orients you in five minutes. Read it fully before touching anything.
 
 A working macOS audio driver for the **TASCAM US-122MKII**, a USB audio
 interface that TASCAM abandoned (no driver for any modern macOS). The target
-machine is **macOS 10.13 High Sierra on Intel**. The driver is built from
+machine is **macOS 13.7.8 Ventura on Intel**. The driver is built from
 scratch: reverse-engineered USB protocol, a Core Audio HAL plugin, a helper
 daemon, shared-memory IPC.
 

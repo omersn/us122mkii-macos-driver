@@ -2,7 +2,7 @@
 
 ## 1. The problem, precisely
 
-**System.** User-space macOS 10.13 (Intel) driver for the TASCAM US-122MKII.
+**System.** User-space macOS 13.7.8 Ventura (Intel) driver for the TASCAM US-122MKII.
 A root libusb daemon owns the USB device and runs async isochronous transfers
 (16 URBs x 16 packets, EP 0x81 IN / 0x02 OUT, coupled full-duplex, 48 kHz). The
 daemon's USB event thread calls `libusb_handle_events_timeout` in a loop and is
@@ -118,7 +118,7 @@ try, but expected to be a partial mitigation at best, not a cure.
 **D. Accept the current state as the user-space floor (zero effort).**
 Under normal use (not hammering Spotlight) the stream is clean. The driver is
 crash-proof and the engine is glitch-proof. The residual is only under extreme,
-artificial load. Document it as a known limitation of user-space isoc on 10.13.
+artificial load. Document it as a known limitation of user-space isoc on macOS 13.7.8.
 
 ## 6. Recommended next step
 

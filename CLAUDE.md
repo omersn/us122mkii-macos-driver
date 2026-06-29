@@ -5,7 +5,7 @@ for orientation; this file is the rules-of-engagement summary.
 
 ## What this project is
 
-A from-scratch macOS 10.13 (Intel) audio driver for the TASCAM US-122MKII USB
+A from-scratch macOS 13.7.8 Ventura (Intel) audio driver for the TASCAM US-122MKII USB
 interface. Working today. Active work: a low-latency isochronous USB rewrite to
 cure load-induced jitter (`docs/04-roadmap-lowlatency-isoc.md`).
 
