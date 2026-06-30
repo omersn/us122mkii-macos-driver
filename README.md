@@ -6,8 +6,11 @@ never released a driver for current versions of macOS, so on a recent Mac it is
 otherwise just a paperweight. This project makes it work again, reverse-engineered
 from the USB protocol up.
 
-**Status:** working. Audio plays and records cleanly, and the driver is stable and
-crash-free. Built and tested on **macOS 13.7.8 Ventura (Intel)**.
+**Status:** working and stable. As of **V3**, the transport uses Apple's
+low-latency isochronous USB API, which **cured the load-induced jitter** of
+earlier versions: audio now stays glitch-free even under heavy system load. Plays
+and records cleanly, crash-free. Built and tested on **macOS 13.7.8 Ventura
+(Intel)**.
 
 ---
 
@@ -63,10 +66,12 @@ The pieces talk to each other through shared memory. The full design is in
 
 - **Works:** clean full-duplex 24-bit audio in and out, survives plug/unplug, no
   crashes.
-- **Load-induced jitter:** under heavy unrelated system load, audio can develop
-  brief skips. This is a timing issue in the USB delivery path, not a shortage of
-  audio data. A low-latency rewrite to cure it is in progress, see
-  [`docs/04-roadmap-lowlatency-isoc.md`](docs/04-roadmap-lowlatency-isoc.md).
+- **Load-induced jitter: fixed in V3.** Earlier versions could skip under heavy
+  system load (a USB delivery-timing problem, not a buffer shortage). V3's
+  low-latency transport updates the USB frame list at primary interrupt time, so
+  it holds steady under load: worst-case completion gaps dropped from ~100-400 ms
+  to a few milliseconds, measured under the same load that used to skip. See
+  [`docs/07-stage0-findings-and-stage1-plan.md`](docs/07-stage0-findings-and-stage1-plan.md).
 - **Audio only:** the device's MIDI ports are not handled by this driver.
 - **Tested on:** macOS 13.7.8 Ventura on Intel. Other macOS versions and Apple
   Silicon Macs are untested.
