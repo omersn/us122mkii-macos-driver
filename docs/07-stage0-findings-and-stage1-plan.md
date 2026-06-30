@@ -54,8 +54,13 @@ Validated on hardware so far (headless self-test, `US122_LL_FORCE=1`):
 - Full presence path works: with device_present=1 / user_hide=0, the plugin
   advertised **US-122MKII** in CoreAudio.
 
-NOT yet done: end-to-end AUDIO listen (play through CoreAudio and hear it clean).
-Needs the libusb daemon stopped so it doesn't race for the device (sudo). Recipe:
+END-TO-END VALIDATED (2026-06-30): real music played through CoreAudio -> plugin
+-> ring -> us122d_ll -> device, user-confirmed "zero drops, very little latency."
+~100 s log: gap_max 1.2-3.7 ms (one 6.1 ms blip), pb_err=0, reanchor=0, and the
+resampler held pb_ring at the ~512 ms buffer_ms setpoint (underrun froze the
+instant audio arrived). The jitter-cure goal of the whole project is achieved in
+a working daemon. Test recipe (no sudo needed in FORCE mode; keep the menu app
+closed so the libusb daemon stays dormant):
 ```
 sudo launchctl unload /Library/LaunchDaemons/net.senesh.us122d.plist
 sudo killall us122d 2>/dev/null
