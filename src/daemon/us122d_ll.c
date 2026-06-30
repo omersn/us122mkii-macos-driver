@@ -49,6 +49,8 @@
 
 #include "shmring.h"
 
+#define US122_V3_VERSION "V3 low-latency (build1)"
+
 #define VID 0x0644
 #define PID 0x8021
 #define IFACE 1
@@ -469,9 +471,10 @@ int main(void){
     g_tb_n2ms = (double)tb.numer / (double)tb.denom / 1e6;
 
     if (shm_setup() != 0) return 1;
-    int force = (getenv("US122_LL_FORCE") != NULL); /* test: stream regardless of app_active */
-    if (force) atomic_store_explicit(&g_shm->user_hide, 0, memory_order_release); /* test: let plugin show it */
-    logts(force ? "us122d_ll starting (FORCE-active test mode)" : "us122d_ll starting (low-latency IOKit transport)");
+    int g_debug = (getenv("US122_DEBUG") != NULL);  /* gate the per-0.5s jitter log */
+    int force = (getenv("US122_LL_FORCE") != NULL); /* debug: stream regardless of app_active */
+    if (force) atomic_store_explicit(&g_shm->user_hide, 0, memory_order_release); /* debug: let plugin show it */
+    { char b[96]; snprintf(b, sizeof b, "us122d (%s) starting%s", US122_V3_VERSION, force?" [FORCE debug]":""); logts(b); }
 
     while (!g_stop){
         /* DORMANT gate: park while the menu app is closed */
@@ -503,8 +506,15 @@ int main(void){
         while (!g_stop && !g_session_end &&
                (force || atomic_load_explicit(&g_shm->app_active, memory_order_acquire))){
             CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.25, false);
+            /* the plugin can change the sample rate (Audio MIDI Setup). Restart
+               the session at the new rate (packet sizing is rate-dependent). */
+            unsigned want = atomic_load_explicit(&g_shm->rate, memory_order_relaxed);
+            if ((want==44100||want==48000||want==88200||want==96000) && want != g_rate){
+                logts("rate change requested; restarting session at new rate");
+                break;
+            }
             double el = (double)(mach_absolute_time()-t0) * tb.numer / tb.denom / 1e9;
-            if (el - last >= 0.5){
+            if (g_debug && el - last >= 0.5){
                 long pb = atomic_load(&g_pb_cb);
                 fprintf(stderr, "[ll t=%.1f] pb_cb=%ld(+%ld/s) gap_max=%.1fms underrun=%ld cap_over=%ld pb_err=%ld reanchor=%ld pb_ring=%u\n",
                         el, pb, (long)((pb-lpb)/(el-last)), g_gap_max_ms,

@@ -73,10 +73,12 @@ The pieces talk to each other through shared memory. The full design is in
 
 ## Building and installing
 
-The build scripts in [`src/build/`](src/build/) compile the daemon, the Core Audio
-plugin, and the menu app, then print the `sudo` commands needed to install each.
-They expect libusb (from Homebrew). Step-by-step install sequences are in
-[`docs/03-current-state.md`](docs/03-current-state.md).
+See **[INSTALL.md](INSTALL.md)** for the full build-and-install guide. In short:
+run [`src/build/build_us122d_v3.sh`](src/build/build_us122d_v3.sh) (the V3
+low-latency daemon + the Core Audio plugin) and
+[`build_us122menu.sh`](src/build/build_us122menu.sh) (the menu app), then follow
+the printed `sudo` install commands. V3 needs only the Xcode Command Line Tools,
+**no Homebrew or libusb** (it uses IOKit directly).
 
 ## Repository layout
 
