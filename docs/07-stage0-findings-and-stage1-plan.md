@@ -34,9 +34,39 @@ contiguous layout, fresh sine), first hardware runs:
   32+32 transfers submitted, **no `kIOReturnIsoTooOld`** (lead=50 frames).
   `SetPipePolicy` + `ResetPipe` applied (V2's other suspects, controlled for).
 
-Remaining for Stage 1: the rate gate (rerun at 44.1k and 96k) to confirm no
-rate-scaled artifact at any rate. Then Stage 2 (capture, the easy half) and
-Stage 3 (integrate into the daemon, replacing the libusb streaming path).
+Deferred (cleanup if all else holds): the rate gate (44.1k/96k) to confirm no
+rate-scaled artifact at other rates.
+
+## Stage 3 PROGRESS: native low-latency daemon (2026-06-30)
+
+`src/daemon/us122d_ll.c` - a drop-in alternative to the libusb `us122d`. Same shm
+contract (shmring.h), so the existing plugin + menu app work unchanged; only the
+transport is native low-latency IOKit. Reuses the validated tester engine, lifts
+V1's interpolating resampler (playback) and capture-to-ring logic. V1 left intact
+for A/B. Capture (Stage 2) is included in the same daemon.
+
+Validated on hardware so far (headless self-test, `US122_LL_FORCE=1`):
+- Compiles clean against real frameworks + shmring.h.
+- Acquires the device via IOKit, submits 32+32 transfers (`first_err=0x0`),
+  streams with **gap_max 1.3-2.0 ms, pb_err=0, reanchor=0** (jitter cure intact),
+  resampler runs (silence + underrun counts on an empty ring, expected), capture
+  discards cheaply with no consumer. Clean teardown + exit, no crash.
+- Full presence path works: with device_present=1 / user_hide=0, the plugin
+  advertised **US-122MKII** in CoreAudio.
+
+NOT yet done: end-to-end AUDIO listen (play through CoreAudio and hear it clean).
+Needs the libusb daemon stopped so it doesn't race for the device (sudo). Recipe:
+```
+sudo launchctl unload /Library/LaunchDaemons/net.senesh.us122d.plist
+sudo killall us122d 2>/dev/null
+clang src/daemon/us122d_ll.c -o /tmp/us122d_ll -Isrc/daemon \
+    -framework IOKit -framework CoreFoundation -lpthread -Wall -O2
+US122_LL_FORCE=1 /tmp/us122d_ll        # device shows as US-122MKII; set as output, play, LISTEN
+# restore: Ctrl-C, then sudo launchctl load <plist>; open US122Menu.app
+```
+Then: the resampler/teardown still need a real soak (drift over minutes, hotplug,
+device-loss) and integration as the actual LaunchDaemon (currently us122d_ll has a
+test FORCE mode; the real path uses the app_active gate like V1).
 
 ## Stage 0: the buffer-layout question is ANSWERED
 
