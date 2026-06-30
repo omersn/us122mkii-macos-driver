@@ -69,9 +69,19 @@ clang src/daemon/us122d_ll.c -o /tmp/us122d_ll -Isrc/daemon \
 US122_LL_FORCE=1 /tmp/us122d_ll        # device shows as US-122MKII; set as output, play, LISTEN
 # restore: Ctrl-C, then sudo launchctl load <plist>; open US122Menu.app
 ```
-Then: the resampler/teardown still need a real soak (drift over minutes, hotplug,
-device-loss) and integration as the actual LaunchDaemon (currently us122d_ll has a
-test FORCE mode; the real path uses the app_active gate like V1).
+CAPTURE (Stage 2) VALIDATED 2026-06-30: with V3 running, the device appears as a
+CoreAudio input and a recording returns real signal (max_volume -53.7 dB, not
+digital silence) through device -> V3 low-latency capture -> ring -> plugin.
+
+V3 PACKAGED: us122d_ll branded V3, per-0.5s log gated behind US122_DEBUG, restarts
+session on plugin rate change, device-loss recovery via the acquire loop.
+`src/build/build_us122d_v3.sh` builds daemon+plugin (no libusb). `INSTALL.md` is
+the end-user guide. V3 installs over V1 (binary -> /usr/local/bin/us122d, existing
+plist/plugin/menu unchanged).
+
+REMAINING (needs sudo + hardware): install V3 as the real LaunchDaemon and test
+the gated (non-FORCE) path via the menu app; hotplug under V3 (unplug/replug);
+multi-minute soak; other sample rates (44.1k/88.2k/96k).
 
 ## Stage 0: the buffer-layout question is ANSWERED
 
