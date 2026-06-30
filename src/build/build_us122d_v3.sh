@@ -21,6 +21,7 @@ PLUGIN="$ROOT/src/plugin/US122.driver"
 PLUGIN_SRC="$PLUGIN/Contents/MacOS/US122.c"
 
 echo "[1/2] compiling V3 low-latency daemon (us122d)..."
+rm -f "$ROOT/us122d"   # avoid 'cannot write' if a stale root-owned build exists
 clang "$DAEMON_SRC" -o "$ROOT/us122d" \
     -I"$INC" \
     -framework IOKit -framework CoreFoundation -lpthread \
@@ -28,6 +29,7 @@ clang "$DAEMON_SRC" -o "$ROOT/us122d" \
 echo "  built: $ROOT/us122d"
 
 echo "[2/2] compiling HAL plugin..."
+rm -f "$PLUGIN/Contents/MacOS/US122" "$PLUGIN/Contents/MacOS/shmring.h"  # clear stale/root-owned
 cp "$INC/shmring.h" "$PLUGIN/Contents/MacOS/shmring.h"
 clang -arch x86_64 -bundle -fno-common \
     -o "$PLUGIN/Contents/MacOS/US122" "$PLUGIN_SRC" \

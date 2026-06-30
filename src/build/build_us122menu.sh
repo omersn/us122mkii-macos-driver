@@ -10,12 +10,13 @@ set -e
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MENU="$ROOT/src/menu/US122Menu"
 APP="$ROOT/US122Menu.app"
+TMPD="$(mktemp -d)"; trap 'rm -rf "$TMPD"' EXIT   # private temp; avoids /tmp ownership clashes
 
 echo "[1/3] compiling Swift menu-bar app (+ C shim)..."
 # swiftc does NOT compile .c sources; compile the shim with clang first, link the .o.
-clang -c "$MENU/shimopen.c" -o /tmp/shimopen.o
-swiftc -O -o /tmp/US122Menu \
-    "$MENU/main.swift" /tmp/shimopen.o \
+clang -c "$MENU/shimopen.c" -o "$TMPD/shimopen.o"
+swiftc -O -o "$TMPD/US122Menu" \
+    "$MENU/main.swift" "$TMPD/shimopen.o" \
     -import-objc-header "$MENU/bridging.h" \
     -framework Cocoa
 echo "  built binary"
@@ -23,7 +24,7 @@ echo "  built binary"
 echo "[2/3] assembling US122Menu.app bundle..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
-cp /tmp/US122Menu "$APP/Contents/MacOS/US122Menu"
+cp "$TMPD/US122Menu" "$APP/Contents/MacOS/US122Menu"
 chmod +x "$APP/Contents/MacOS/US122Menu"
 cp "$MENU/Info.plist" "$APP/Contents/Info.plist"
 echo "  assembled: $APP"

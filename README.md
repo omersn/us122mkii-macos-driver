@@ -73,12 +73,19 @@ The pieces talk to each other through shared memory. The full design is in
 
 ## Building and installing
 
-See **[INSTALL.md](INSTALL.md)** for the full build-and-install guide. In short:
-run [`src/build/build_us122d_v3.sh`](src/build/build_us122d_v3.sh) (the V3
-low-latency daemon + the Core Audio plugin) and
-[`build_us122menu.sh`](src/build/build_us122menu.sh) (the menu app), then follow
-the printed `sudo` install commands. V3 needs only the Xcode Command Line Tools,
-**no Homebrew or libusb** (it uses IOKit directly).
+**Easiest, one command** (clone the repo, then):
+
+```bash
+./install.sh
+```
+
+The guided installer checks your Mac and device, builds the daemon + plugin +
+menu app, installs them (asking once for your password), and verifies the
+low-latency driver is live. Remove it any time with `./install.sh --uninstall`.
+V3 needs only the Xcode Command Line Tools, **no Homebrew or libusb**.
+
+For the manual step-by-step (or to understand what the installer does), see
+**[INSTALL.md](INSTALL.md)**.
 
 ## Repository layout
 

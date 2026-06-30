@@ -16,6 +16,27 @@ glitch-free even under heavy system load.
 > Anything else (different ID, appears only briefly, or not at all) is a
 > firmware-upload revision this driver cannot initialize.
 
+## Quick install (recommended)
+
+From the repository root:
+
+```bash
+./install.sh
+```
+
+This guided installer does everything below for you: checks prerequisites and
+that your unit is a supported revision, builds the daemon + plugin + menu app,
+installs them (it asks once for your admin password), and verifies the
+low-latency driver is actually running. Other modes:
+
+```bash
+./install.sh --dry-run     # check + build only, no install
+./install.sh --uninstall   # remove the driver
+```
+
+The rest of this file is the manual procedure, for reference or if you prefer to
+run each step yourself.
+
 ## Requirements
 
 - **macOS 13 Ventura (Intel).** Built and tested on 13.7.8. Other versions and
