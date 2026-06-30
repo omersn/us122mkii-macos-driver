@@ -100,6 +100,12 @@ static _Atomic long g_cap_frames = 0; /* total captured frames -> measured rate 
 static _Atomic long g_reanchor = 0;
 static _Atomic unsigned long long g_pb_next = 0, g_cap_next = 0;
 
+/* jitter instrumentation (all touched only on the single runloop thread) */
+static double   g_tb_n2ms = 0;        /* mach ticks -> ms */
+static uint64_t g_last_pb_ticks = 0;
+static double   g_gap_max_ms = 0;     /* worst pb gap this log interval */
+static long     g_late = 0;           /* cumulative pb gaps > 20 ms */
+
 static void on_sigint(int s){ (void)s; g_stop = 1; CFRunLoopStop(CFRunLoopGetCurrent()); }
 
 /* ---- realtime promotion (mirrors the daemon's policy) ---- */
@@ -176,6 +182,13 @@ static void pb_cb(void *refcon, IOReturn result, void *arg0){
     (void)arg0;
     xfer_t *x = (xfer_t*)refcon;
     atomic_fetch_add(&g_pb_cb, 1);
+    uint64_t now = mach_absolute_time();
+    if (g_last_pb_ticks){
+        double gap_ms = (double)(now - g_last_pb_ticks) * g_tb_n2ms;
+        if (gap_ms > g_gap_max_ms) g_gap_max_ms = gap_ms;
+        if (gap_ms > 20.0) g_late++;
+    }
+    g_last_pb_ticks = now;
     if (g_stop) return;
     if (result != kIOReturnSuccess && result != kIOReturnUnderrun) atomic_fetch_add(&g_pb_err, 1);
     fill_pb(x);
@@ -389,6 +402,8 @@ int main(int argc, char **argv){
         fprintf(stderr, "rate must be 44100/48000/88200/96000\n"); return 1;
     }
     signal(SIGINT, on_sigint);
+    mach_timebase_info_data_t tb; mach_timebase_info(&tb);
+    g_tb_n2ms = (double)tb.numer / (double)tb.denom / 1e6;
     printf("US-122MKII low-latency tone: %u Hz, %.0f Hz sine, %.1fs, amp=%.2f\n",
            g_rate, g_freq, seconds, g_amp);
 
@@ -396,18 +411,19 @@ int main(int argc, char **argv){
     make_thread_realtime();
 
     uint64_t t0 = mach_absolute_time();
-    mach_timebase_info_data_t tb; mach_timebase_info(&tb);
-    double last = 0;
+    double last = 0, prev_el = 0; long last_pcb = 0, last_cf = 0;
     for (;;){
         CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.25, false);
         double el = (double)(mach_absolute_time()-t0) * tb.numer / tb.denom / 1e9;
         if (g_stop || el >= seconds) break;
         if (el - last >= 0.5){
-            last = el;
-            long cf = atomic_load(&g_cap_frames);
-            printf("[t=%.1f] pb_cb=%ld cap_cb=%ld pb_err=%ld reanchor=%ld | cap_frames=%ld (~%.0f fps)\n",
-                   el, atomic_load(&g_pb_cb), atomic_load(&g_cap_cb), atomic_load(&g_pb_err),
-                   atomic_load(&g_reanchor), cf, cf/el);
+            long pcb = atomic_load(&g_pb_cb), cf = atomic_load(&g_cap_frames);
+            double iv = el - prev_el; if (iv <= 0) iv = 0.5;
+            printf("[t=%.1f] pb_cb=%ld(+%ld/s) gap_max=%.1fms late=%ld reanchor=%ld pb_err=%ld | dev~%.0f fps\n",
+                   el, pcb, (long)((pcb-last_pcb)/iv), g_gap_max_ms, g_late,
+                   atomic_load(&g_reanchor), atomic_load(&g_pb_err), (cf-last_cf)/iv);
+            g_gap_max_ms = 0;            /* per-interval worst gap */
+            last = el; prev_el = el; last_pcb = pcb; last_cf = cf;
         }
     }
     g_stop = 1;

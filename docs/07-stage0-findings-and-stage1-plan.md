@@ -14,6 +14,30 @@ docs/02, 04, or 05, this document wins; those carry an older narrative.
 - **Architecture decision: Path A** - low-latency engine inside V1, keep the
   daemon + shm + resampler. Not reviving V2.
 
+## Stage 1 RESULT: VALIDATED on hardware (2026-06-30)
+
+The low-latency PLAYBACK engine works. Standalone tester
+`tools/us122_lowlat_tone.c` (native IOKit `LowLatencyWriteIsochPipeAsync`,
+contiguous layout, fresh sine), first hardware runs:
+
+- **Audio: clean.** Steady 440 Hz sine, no bit-crush, at 48 kHz. V2's wall is
+  gone; the CONTIGUOUS playback layout (vs V2's fixed-stride `i*MAX_PACKET_SIZE`)
+  was the fix. User-confirmed by ear, "100% clean, steady."
+- **Jitter: cured.** 30 s under heavy load (the same window-move / Spotlight
+  stress that crushed V1): `gap_max` stayed **1.2-3.6 ms**, `late(>20ms)=0`,
+  `pb_cb` steady ~1000/s, `reanchor=0`, `pb_err=0`. V1 under the same load
+  collapsed to `pb_cb`~313 and `gap_max` 115-419 ms. ~100x better worst-case;
+  user confirmed playback was untouched by the stress.
+- Device runs ~48000 fps steady; nominal pacing is correct (no drift glitch in
+  30 s). The earlier "~47409" was a startup-ramp artifact in a cumulative average.
+- IOKit bring-up worked first try: `set_rate` ok, pipes pb=2 / cap=1 (mps=78),
+  32+32 transfers submitted, **no `kIOReturnIsoTooOld`** (lead=50 frames).
+  `SetPipePolicy` + `ResetPipe` applied (V2's other suspects, controlled for).
+
+Remaining for Stage 1: the rate gate (rerun at 44.1k and 96k) to confirm no
+rate-scaled artifact at any rate. Then Stage 2 (capture, the easy half) and
+Stage 3 (integrate into the daemon, replacing the libusb streaming path).
+
 ## Stage 0: the buffer-layout question is ANSWERED
 
 From the local SDK headers (`IOKit/usb/USB.h`, `IOUSBLib.h`) plus V1 as a
